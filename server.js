@@ -60,6 +60,85 @@ app.post('/login', async (req, res) => {
 
 app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/login'); });
 
+// === SEARCH FUNCTIONALITY ===
+
+// Web Search Route
+app.get('/search', requireLogin, async (req, res) => {
+    const searchTerm = req.query.q || '';
+    let flights = [];
+
+    if (searchTerm.trim()) {
+        // Create search query for multiple fields
+        const searchQuery = {
+            userid: req.session.user.id,
+            $or: [
+                { flightNumber: { $regex: searchTerm, $options: 'i' } },
+                { destination: { $regex: searchTerm, $options: 'i' } },
+                { airline: { $regex: searchTerm, $options: 'i' } },
+                { departureAirport: { $regex: searchTerm, $options: 'i' } },
+                { arrivalAirport: { $regex: searchTerm, $options: 'i' } },
+                { status: { $regex: searchTerm, $options: 'i' } },
+                { gate: { $regex: searchTerm, $options: 'i' } }
+            ]
+        };
+        flights = await db.collection('flights').find(searchQuery).sort({ createdAt: -1 }).toArray();
+    } else {
+        // If no search term, get all flights
+        flights = await db.collection('flights').find({ userid: req.session.user.id }).sort({ createdAt: -1 }).toArray();
+    }
+
+    res.render('search', { 
+        flights, 
+        user: req.session.user, 
+        searchTerm,
+        resultsCount: flights.length
+    });
+});
+
+// API Search Route
+app.get('/api/search', requireLogin, async (req, res) => {
+    const searchTerm = req.query.q || '';
+    
+    if (!searchTerm.trim()) {
+        return res.json({ 
+            success: false, 
+            error: 'Search term is required' 
+        });
+    }
+
+    try {
+        const searchQuery = {
+            userid: req.session.user.id,
+            $or: [
+                { flightNumber: { $regex: searchTerm, $options: 'i' } },
+                { destination: { $regex: searchTerm, $options: 'i' } },
+                { airline: { $regex: searchTerm, $options: 'i' } },
+                { departureAirport: { $regex: searchTerm, $options: 'i' } },
+                { arrivalAirport: { $regex: searchTerm, $options: 'i' } },
+                { status: { $regex: searchTerm, $options: 'i' } },
+                { gate: { $regex: searchTerm, $options: 'i' } }
+            ]
+        };
+
+        const flights = await db.collection('flights')
+            .find(searchQuery)
+            .sort({ createdAt: -1 })
+            .toArray();
+
+        res.json({
+            success: true,
+            count: flights.length,
+            searchTerm: searchTerm,
+            data: flights
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: 'Search failed: ' + error.message
+        });
+    }
+});
+
 // === CRUD Web ===
 app.get('/list', requireLogin, async (req, res) => {
     const flights = await db.collection('flights').find({ userid: req.session.user.id }).sort({ createdAt: -1 }).toArray();
