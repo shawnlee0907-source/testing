@@ -60,13 +60,13 @@ app.post('/login', async (req, res) => {
 
 app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/login'); });
 
-// === UPDATED LIST ROUTE WITH SIMPLE SEARCH ===
+//CRUD webpage
 app.get('/list', requireLogin, async (req, res) => {
     const searchTerm = req.query.q || '';
     let flights;
 
     if (searchTerm) {
-        // Simple search across multiple fields
+        
         const searchQuery = {
             userid: req.session.user.id,
             $or: [
@@ -79,14 +79,14 @@ app.get('/list', requireLogin, async (req, res) => {
         };
         flights = await db.collection('flights').find(searchQuery).sort({ createdAt: -1 }).toArray();
     } else {
-        // Get all flights if no search term
+       
         flights = await db.collection('flights').find({ userid: req.session.user.id }).sort({ createdAt: -1 }).toArray();
     }
 
     res.render('list', { flights, user: req.session.user, success: req.query.success });
 });
 
-// === ALL OTHER ROUTES REMAIN EXACTLY THE SAME ===
+
 app.get('/details', requireLogin, async (req, res) => {
     const flight = await db.collection('flights').findOne({ _id: new ObjectId(req.query._id), userid: req.session.user.id });
     if (!flight) return res.render('info', { message: 'Flight not found', user: req.session.user });
